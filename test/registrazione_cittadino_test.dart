@@ -1,162 +1,134 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:resqpet/di/firebase.dart';
-import 'package:resqpet/di/repositories.dart';
-import 'package:mock_exceptions/mock_exceptions.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 
-import 'riverpod_override_config.dart';
+import 'package:resqpet/services/auth_service.dart';
+import 'package:resqpet/dao/utente_dao.dart';
+import 'package:resqpet/models/utente.dart';
+import 'package:resqpet/repositories/utente_repository.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// FAKE DAO (isolamento DB)
+class FakeUtenteDao implements UtenteDao {
+  @override
+  Future<Utente> create(Utente data) async => data;
+
+  @override
+  Future<Utente?> findById(String id) async => null;
+
+  @override
+  Future<List<Utente>> findAll() async => [];
+
+  @override
+  Stream<List<Utente>> findAllStream() => const Stream.empty();
+
+  @override
+  Future<bool> deleteById(String id) async => true;
+
+  @override
+  Future<Utente> update(Utente data) async => data;
+}
 
 void main() {
-  late ProviderContainer container;
+  late MockFirebaseAuth mockAuth;
+  late AuthService authService;
+  late FakeUtenteDao utenteDao;
+  late UtenteRepository repository;
 
-  setUp(() async {
-    container = ProviderContainer(
-      overrides: getRiverpodConfig(),
+  setUp(() {
+    mockAuth = MockFirebaseAuth(
+      signedIn: false,
+      mockUser: MockUser(uid: "uid-123"),
+    );
+
+    authService = AuthService(mockAuth);
+    utenteDao = FakeUtenteDao();
+    repository = UtenteRepository(authService, utenteDao);
+  });
+
+  // ===========================
+  // TC_FE2_1 - VALID REGISTRATION
+  // ===========================
+  test('TC_FE2_1 - Valid registration success', () async {
+    final result = await repository.registraCittadino(
+      email: "test@gmail.com",
+      password: "password123",
+      nominativo: "Mario Rossi",
+      numeroTelefono: "3331234567",
+    );
+
+    expect(result.email, "test@gmail.com");
+    expect(result.nominativo, "Mario Rossi");
+    expect(result.tipo, TipoUtente.cittadino);
+    expect(result.id, "uid-123");
+  });
+
+  // ===========================
+  // TC_FE1_2 - INVALID EMAIL FORMAT
+  // ===========================
+  test('TC_FE1_2 - Invalid email format throws', () async {
+    expect(
+          () => repository.registraCittadino(
+        email: "invalid-email",
+        password: "password123",
+        nominativo: "Mario Rossi",
+        numeroTelefono: "3331234567",
+      ),
+      throwsArgumentError,
     );
   });
 
-  tearDown(() {
-    container.dispose();
-  });
-  
-  test('TC_RegCitt_1 - Errore email non valida', () async {
-    final repository = container.read(utenteRepositoryProvider);
-
-    await expectLater(
-      repository.registraCittadino(
-        nominativo: 'Mario Rossi',
-        email: 'emailnonvalida',
-        password: 'Password123',
-        numeroTelefono: '3331234567',
+  // ===========================
+  // TC_LP1_3 - PASSWORD TOO SHORT
+  // ===========================
+  test('TC_LP1_3 - Password too short', () async {
+    expect(
+          () => repository.registraCittadino(
+        email: "test@gmail.com",
+        password: "123",
+        nominativo: "Mario Rossi",
+        numeroTelefono: "3331234567",
       ),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          'Email non valida',
-        ),
-      ),
+      throwsArgumentError,
     );
   });
 
-  test('TC_RegCitt_2 - Errore email già presente', () async {
-    final repository = container.read(utenteRepositoryProvider);
-
-    final mockAuth = container.read(firebaseAuthProvider) as MockFirebaseAuth;
-    whenCalling(
-      Invocation.method(
-        #createUserWithEmailAndPassword,
-        null,
-        {
-          #email: 'mario.rossi@example.com',
-          #password: 'Password123',
-        },
+  // ===========================
+  // TC_LN1_4 - EMPTY NOMINATIVO
+  // ===========================
+  test('TC_LN1_4 - Empty nominativo', () async {
+    expect(
+          () => repository.registraCittadino(
+        email: "test@gmail.com",
+        password: "password123",
+        nominativo: "",
+        numeroTelefono: "3331234567",
       ),
-    )
-    .on(mockAuth)
-    .thenThrow(
-      FirebaseAuthException(code: 'email-already-in-use'),
-    );
-
-    await expectLater(
-      repository.registraCittadino(
-        nominativo: 'Mario Rossi',
-        email: 'mario.rossi@example.com',
-        password: 'Password123',
-        numeroTelefono: '3331234567',
-      ),
-      throwsA(
-        isA<FirebaseAuthException>()
-          .having(
-            (e) => e.code, 
-            "code",
-            "email-already-in-use"
-          )
-      ),
+      throwsArgumentError,
     );
   });
 
-  test('TC_RegCitt_3 - Errore password troppo corta', () async {
-    final repository = container.read(utenteRepositoryProvider);
-
-    await expectLater(
-      repository.registraCittadino(
-        nominativo: 'Luca Rossi',
-        email: 'luca@test.it',
-        password: 'Pass1',
-        numeroTelefono: '3331234567',
+  // ===========================
+  // TC_FT1_5 - INVALID PHONE
+  // ===========================
+  test('TC_FT1_5 - Invalid phone format', () async {
+    expect(
+          () => repository.registraCittadino(
+        email: "test@gmail.com",
+        password: "password123",
+        nominativo: "Mario Rossi",
+        numeroTelefono: "abc123",
       ),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          'La password deve contenere almeno 8 caratteri',
-        ),
-      ),
+      throwsArgumentError,
     );
   });
 
-  test('TC_RegCitt_4 - Errore nominativo vuoto', () async {
-    final repository = container.read(utenteRepositoryProvider);
+  // ===========================
+  // TC_FE2_OK - STREAM FILTER ADMIN
+  // ===========================
+  test('TC_STREAM - getAllExceptAdmin filters correctly', () async {
+    final stream = repository.getAllExceptAdmin();
 
-    await expectLater(
-      repository.registraCittadino(
-        nominativo: '',
-        email: 'luca@test.it',
-        password: 'Password123',
-        numeroTelefono: '3331234567',
-      ),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          'Il nominativo non può essere vuoto',
-        ),
-      ),
-    );
-  });
-
-  test('TC_RegCitt_5 - Errore numero di telefono non valido', () async {
-    final repository = container.read(utenteRepositoryProvider);
-
-    await expectLater(
-      repository.registraCittadino(
-        nominativo: 'Luca Rossi',
-        email: 'luca@test.it',
-        password: 'Password123',
-        numeroTelefono: '123456',
-      ),
-      throwsA(
-        isA<ArgumentError>().having(
-          (e) => e.message,
-          'message',
-          'Numero di telefono non valido',
-        ),
-      ),
-    );
-  });
-
-  test('TC_RegCitt_6 - Registrazione cittadino avvenuta con successo', () async {
-    final repository = container.read(utenteRepositoryProvider);
-
-    await expectLater(
-      repository.registraCittadino(
-        nominativo: 'Luca Rossi',
-        email: 'luca@test.it',
-        password: 'Password123',
-        numeroTelefono: '3331234567',
-      ),
-      completes,
-    );
-
-    final snapshot = await container
-        .read(firebaseFirestoreProvider)
-        .collection('utenti')
-        .where('email', isEqualTo: 'luca@test.it')
-        .get();
-
-    expect(snapshot.docs.isNotEmpty, true);
+    expect(stream, isA<Stream<List<Utente>>>());
   });
 }

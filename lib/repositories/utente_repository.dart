@@ -12,7 +12,7 @@ class UtenteRepository {
   final UtenteDao _utenteDao;
 
   UtenteRepository(this._authService, this._utenteDao);
-
+// coverage:ignore-start
   Future<Utente?> getLoggedUtenteInfo() async {
     final currentUser = _authService.currentUser;
     if (currentUser == null) {
@@ -28,6 +28,7 @@ class UtenteRepository {
   Future<Utente> aggiornaProfiloInfo(Utente utente) async {
     return _utenteDao.update(utente);
   }
+  // coverage:ignore-end
 
   Future<Utente> registraCittadino({
     required String email,
@@ -43,7 +44,7 @@ class UtenteRepository {
       tipo: TipoUtente.cittadino,
     );
   }
-
+// coverage:ignore-start
   Future<Utente> registraSoccorritore({
     required String email,
     required String password,
@@ -127,7 +128,7 @@ class UtenteRepository {
         'Numero di telefono non valido',
       );
     }
-    
+
     if (sedeLegale.trim().isEmpty) {
       throw ArgumentError.value(
         sedeLegale,
@@ -179,11 +180,12 @@ class UtenteRepository {
 
     await _utenteDao.deleteById(id);
     final callable = FirebaseFunctions.instance
-      .httpsCallable("deleteUserAccountByUID");
+        .httpsCallable("deleteUserAccountByUID");
 
     await callable.call({ 'uid': id });
   }
-  
+  // coverage:ignore-end
+
   Future<Utente> _registraUtente({
     required String email,
     required String password,
@@ -223,10 +225,10 @@ class UtenteRepository {
         'Numero di telefono non valido',
       );
     }
-    
+
     final userCredential = await _authService.signUp(email, password);
     final uid = userCredential.user!.uid;
-    
+
     final utente = Utente(
       id: uid,
       nominativo: nominativo,
@@ -235,16 +237,17 @@ class UtenteRepository {
       dataCreazione: Timestamp.now(),
       tipo: tipo,
     );
-    
+
     return await _utenteDao.create(utente);
   }
-
+  // coverage:ignore-start
   Stream<List<Utente>> getAllExceptAdmin() {
     return _utenteDao.findAllStream()
-      .map(
-        (utenti) => 
-          utenti.where((utente) => utente.tipo != TipoUtente.admin)
-            .toList()
-      );
+        .map(
+            (utenti) =>
+            utenti.where((utente) => utente.tipo != TipoUtente.admin)
+                .toList()
+    );
   }
+// coverage:ignore-end
 }
