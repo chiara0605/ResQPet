@@ -14,27 +14,26 @@ import 'package:resqpet/repositories/utente_repository.dart';
   MockSpec<UserCredential>(),
   MockSpec<User>(),
 ])
-
 import 'registrazione_cittadino_test.mocks.dart';
 
 void main() {
-  late UtenteRepository utenteRepository;
+  late UtenteRepository repository;
   late MockAuthService mockAuthService;
   late MockUtenteDao mockUtenteDao;
 
   setUp(() {
     mockAuthService = MockAuthService();
     mockUtenteDao = MockUtenteDao();
-    utenteRepository = UtenteRepository(mockAuthService, mockUtenteDao);
+    repository = UtenteRepository(mockAuthService, mockUtenteDao);
   });
 
-  group('UtenteRepository - registraCittadino Black-Box Tests', () {
+  group('UtenteRepository - registraCittadino', () {
 
     /**
      * ===========================
-     * Test Case ID: TC_REG_1
+     * Test Case ID: TC_REG_01
      * Test Frame: TF1
-     * Objective: Verify registration fails when email format is invalid.
+     * Objective: Verify error handling for invalid email format.
      *
      * Input parameters:
      * - email = "invalid-email"
@@ -43,23 +42,24 @@ void main() {
      * - numeroTelefono = "3331234567"
      * ===========================
      */
-    test('TC_REG_1 - Invalid email format should throw ArgumentError', () async {
+    test('TC_REG_01 - Should throw ArgumentError for invalid email', () async {
       expect(
-            () => utenteRepository.registraCittadino(
-          email: "invalid-email",
-          password: "password123",
-          nominativo: "Mario Rossi",
-          numeroTelefono: "3331234567",
+            () => repository.registraCittadino(
+          email: 'invalid-email',
+          password: 'password123',
+          nominativo: 'Mario Rossi',
+          numeroTelefono: '3331234567',
         ),
-        throwsA(isA<ArgumentError>()),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message', 'Email non valida')),
       );
+      verifyZeroInteractions(mockAuthService);
     });
 
     /**
      * ===========================
-     * Test Case ID: TC_REG_2
+     * Test Case ID: TC_REG_02
      * Test Frame: TF2
-     * Objective: Verify registration fails when email is already present in database.
+     * Objective: Verify error handling when email is already registered in Firebase.
      *
      * Input parameters:
      * - email = "mario@test.it"
@@ -68,16 +68,17 @@ void main() {
      * - numeroTelefono = "3331234567"
      * ===========================
      */
-    test('TC_REG_2 - Email already present should throw Exception', () async {
-      // Logic assumes _registraUtente checks uniqueness via Dao or AuthService fails
-      when(mockAuthService.signUp(any, any)).thenThrow(FirebaseAuthException(code: 'email-already-in-use'));
+    test('TC_REG_02 - Should propagate error if email already present (AuthException)', () async {
+      when(mockAuthService.signUp(any, any)).thenThrow(
+        FirebaseAuthException(code: 'email-already-in-use'),
+      );
 
       expect(
-            () => utenteRepository.registraCittadino(
-          email: "mario@test.it",
-          password: "password123",
-          nominativo: "Mario Rossi",
-          numeroTelefono: "3331234567",
+            () => repository.registraCittadino(
+          email: 'mario@test.it',
+          password: 'password123',
+          nominativo: 'Mario Rossi',
+          numeroTelefono: '3331234567',
         ),
         throwsA(isA<FirebaseAuthException>()),
       );
@@ -85,9 +86,9 @@ void main() {
 
     /**
      * ===========================
-     * Test Case ID: TC_REG_3
+     * Test Case ID: TC_REG_03
      * Test Frame: TF3
-     * Objective: Verify registration fails when password is too short.
+     * Objective: Verify error handling for password shorter than 8 characters.
      *
      * Input parameters:
      * - email = "mario@test.it"
@@ -96,73 +97,73 @@ void main() {
      * - numeroTelefono = "3331234567"
      * ===========================
      */
-    test('TC_REG_3 - Short password (<8) should throw ArgumentError', () async {
+    test('TC_REG_03 - Should throw ArgumentError for short password', () async {
       expect(
-            () => utenteRepository.registraCittadino(
-          email: "mario@test.it",
-          password: "123",
-          nominativo: "Mario Rossi",
-          numeroTelefono: "3331234567",
+            () => repository.registraCittadino(
+          email: 'mario@test.it',
+          password: '123',
+          nominativo: 'Mario Rossi',
+          numeroTelefono: '3331234567',
         ),
-        throwsA(isA<ArgumentError>()),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message', contains('almeno 8 caratteri'))),
       );
     });
 
     /**
      * ===========================
-     * Test Case ID: TC_REG_4
+     * Test Case ID: TC_REG_04
      * Test Frame: TF4
-     * Objective: Verify registration fails when nominativo is blank.
+     * Objective: Verify error handling for empty nominativo.
      *
      * Input parameters:
      * - email = "mario@test.it"
      * - password = "password123"
-     * - nominativo = ""
+     * - nominativo = "  "
      * - numeroTelefono = "3331234567"
      * ===========================
      */
-    test('TC_REG_4 - Blank nominativo should throw ArgumentError', () async {
+    test('TC_REG_04 - Should throw ArgumentError for blank nominativo', () async {
       expect(
-            () => utenteRepository.registraCittadino(
-          email: "mario@test.it",
-          password: "password123",
-          nominativo: "",
-          numeroTelefono: "3331234567",
+            () => repository.registraCittadino(
+          email: 'mario@test.it',
+          password: 'password123',
+          nominativo: '  ',
+          numeroTelefono: '3331234567',
         ),
-        throwsA(isA<ArgumentError>()),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message', contains('non può essere vuoto'))),
       );
     });
 
     /**
      * ===========================
-     * Test Case ID: TC_REG_5
+     * Test Case ID: TC_REG_05
      * Test Frame: TF5
-     * Objective: Verify registration fails when phone format is invalid.
+     * Objective: Verify error handling for non-Italian or invalid phone format.
      *
      * Input parameters:
      * - email = "mario@test.it"
      * - password = "password123"
      * - nominativo = "Mario Rossi"
-     * - numeroTelefono = "123"
+     * - numeroTelefono = "12345"
      * ===========================
      */
-    test('TC_REG_5 - Invalid phone format should throw ArgumentError', () async {
+    test('TC_REG_05 - Should throw ArgumentError for invalid phone format', () async {
       expect(
-            () => utenteRepository.registraCittadino(
-          email: "mario@test.it",
-          password: "password123",
-          nominativo: "Mario Rossi",
-          numeroTelefono: "123",
+            () => repository.registraCittadino(
+          email: 'mario@test.it',
+          password: 'password123',
+          nominativo: 'Mario Rossi',
+          numeroTelefono: '12345',
         ),
-        throwsA(isA<ArgumentError>()),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message', 'Numero di telefono non valido')),
       );
     });
 
     /**
      * ===========================
-     * Test Case ID: TC_REG_6
+     * Test Case ID: TC_REG_06
      * Test Frame: TF6
-     * Objective: Verify successful registration with all valid parameters.
+     * Objective: Verify successful registration with valid data.
      *
      * Input parameters:
      * - email = "mario@test.it"
@@ -171,28 +172,31 @@ void main() {
      * - numeroTelefono = "3331234567"
      * ===========================
      */
-    test('TC_REG_6 - Successful registration', () async {
-      final mockUser = MockUser();
+    test('TC_REG_06 - Should return Utente object on success', () async {
       final mockCredential = MockUserCredential();
+      final mockUser = MockUser();
 
-      when(mockUser.uid).thenReturn("uid_123");
+      when(mockUser.uid).thenReturn('uid_123');
       when(mockCredential.user).thenReturn(mockUser);
-      when(mockAuthService.signUp("mario@test.it", "password123"))
-          .thenAnswer((_) async => mockCredential);
+      when(mockAuthService.signUp(any, any)).thenAnswer((_) async => mockCredential);
 
-      when(mockUtenteDao.create(any)).thenAnswer((realInvocation) async => realInvocation.positionalArguments[0]);
+      when(mockUtenteDao.create(any)).thenAnswer((invocation) async {
+        return invocation.positionalArguments[0] as Utente;
+      });
 
-      final result = await utenteRepository.registraCittadino(
-        email: "mario@test.it",
-        password: "password123",
-        nominativo: "Mario Rossi",
-        numeroTelefono: "3331234567",
+      final result = await repository.registraCittadino(
+        email: 'mario@test.it',
+        password: 'password123',
+        nominativo: 'Mario Rossi',
+        numeroTelefono: '3331234567',
       );
 
-      expect(result.email, "mario@test.it");
+      expect(result.email, 'mario@test.it');
+      expect(result.id, 'uid_123');
       expect(result.tipo, TipoUtente.cittadino);
-      expect(result.id, "uid_123");
-      verify(mockUtenteDao.create(any)).called(1);
+
+      verify(mockAuthService.signUp('mario@test.it', 'password123')).called(1);
+      verify(mockUtenteDao.create(argThat(isA<Utente>()))).called(1);
     });
   });
 }

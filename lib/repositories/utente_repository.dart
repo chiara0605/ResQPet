@@ -204,8 +204,8 @@ class UtenteRepository {
 
     if (!min8PasswordRegex.hasMatch(password)) {
       throw ArgumentError.value(
-        password,
         'password',
+        password,
         'La password deve contenere almeno 8 caratteri',
       );
     }
