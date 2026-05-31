@@ -11,7 +11,7 @@ class UtenteRepository {
   final AuthService _authService;
   final UtenteDao _utenteDao;
 
-  UtenteRepository(this._authService, this._utenteDao);
+  UtenteRepository( this._utenteDao,this._authService);
 // coverage:ignore-start
   Future<Utente?> getLoggedUtenteInfo() async {
     final currentUser = _authService.currentUser;
@@ -204,8 +204,8 @@ class UtenteRepository {
 
     if (!min8PasswordRegex.hasMatch(password)) {
       throw ArgumentError.value(
-        'password',
         password,
+        'password',
         'La password deve contenere almeno 8 caratteri',
       );
     }
