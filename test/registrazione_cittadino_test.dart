@@ -14,7 +14,7 @@ import 'package:resqpet/repositories/utente_repository.dart';
   MockSpec<UserCredential>(),
   MockSpec<User>(),
 ])
-import 'registrazione_cittadino_test.mocks.dart';
+import 'registrazione_cittadino_test.mokcks.dart';
 
 void main() {
   late UtenteRepository repository;

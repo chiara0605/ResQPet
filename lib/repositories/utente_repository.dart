@@ -11,7 +11,7 @@ class UtenteRepository {
   final AuthService _authService;
   final UtenteDao _utenteDao;
 
-  UtenteRepository( this._utenteDao,this._authService);
+  UtenteRepository(this._authService, this._utenteDao);
 // coverage:ignore-start
   Future<Utente?> getLoggedUtenteInfo() async {
     final currentUser = _authService.currentUser;
